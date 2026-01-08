@@ -1,0 +1,9 @@
+# Copy to terraform.tfvars and fill in values
+# terraform.tfvars is gitignored to protect secrets
+
+region        = "us-west-2"
+key_name      = "robotlab"
+isaac_sim_ami = "ami-0a58578db493e70fb"
+
+# Get your IP: curl -s https://api.ipify.org
+my_ip_cidr = "YOUR_IP/32"
