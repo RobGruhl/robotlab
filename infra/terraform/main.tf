@@ -67,12 +67,26 @@ resource "aws_security_group" "isaac_sim" {
 }
 
 # EC2 Instance - NVIDIA Isaac Sim Development Workstation
+# Supports both on-demand and spot instances via use_spot variable
 resource "aws_instance" "isaac_sim" {
   ami           = var.isaac_sim_ami
-  instance_type = "g6e.2xlarge" # Only supported type for Isaac Sim streaming (L40s GPU with NVENC)
+  instance_type = var.instance_type
   key_name      = var.key_name
 
   vpc_security_group_ids = [aws_security_group.isaac_sim.id]
+
+  # Spot instance configuration (only applied when use_spot = true)
+  dynamic "instance_market_options" {
+    for_each = var.use_spot ? [1] : []
+    content {
+      market_type = "spot"
+      spot_options {
+        instance_interruption_behavior = "stop"           # Stop (not terminate) on interruption to preserve EBS
+        spot_instance_type             = "persistent"     # Re-request spot when stopped
+        max_price                      = var.spot_max_price # Optional price cap, defaults to on-demand price
+      }
+    }
+  }
 
   root_block_device {
     volume_size           = var.root_volume_size
@@ -81,7 +95,7 @@ resource "aws_instance" "isaac_sim" {
   }
 
   tags = {
-    Name    = "robotlab-isaac-sim"
+    Name    = "robotlab-isaac-sim${var.use_spot ? "-spot" : ""}"
     Project = "robotlab"
   }
 

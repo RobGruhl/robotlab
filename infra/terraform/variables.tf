@@ -29,3 +29,26 @@ variable "root_volume_size" {
   type        = number
   default     = 200
 }
+
+variable "instance_type" {
+  description = <<-EOT
+    EC2 instance type. Options:
+    - g6e.2xlarge: L40s GPU, best for streaming/interactive ($1.50/hr on-demand)
+    - g5.xlarge:   A10G GPU, good for training + occasional streaming ($1.00/hr on-demand)
+    - g4dn.xlarge: T4 GPU, budget option for lighter workloads ($0.50/hr on-demand)
+  EOT
+  type        = string
+  default     = "g5.xlarge" # Good balance of cost and capability for dev/training
+}
+
+variable "use_spot" {
+  description = "Use spot instances for ~70% cost savings. May be interrupted with 2 min warning."
+  type        = bool
+  default     = true # Default to spot for dev/training workloads
+}
+
+variable "spot_max_price" {
+  description = "Max hourly price for spot instance. Leave empty to use on-demand price as cap."
+  type        = string
+  default     = "" # Empty = on-demand price (no cap)
+}

@@ -23,7 +23,12 @@ output "dcv_url" {
   value       = "https://${aws_instance.isaac_sim.public_ip}:8443"
 }
 
+output "instance_type" {
+  description = "Instance type and pricing mode"
+  value       = "${var.instance_type} (${var.use_spot ? "spot" : "on-demand"})"
+}
+
 output "cost_warning" {
   description = "Cost reminder"
-  value       = "g6e.2xlarge costs ~$1.50/hr. Run ./scripts/stop-instance.sh when done!"
+  value       = var.use_spot ? "Spot instance - ~70% cheaper but may be interrupted. Stop when done!" : "${var.instance_type} on-demand. Run ./scripts/stop-instance.sh when done!"
 }
