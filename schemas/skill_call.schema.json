@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://robotlab.local/schemas/skill_call.schema.json",
+  "title": "RobotLab SkillCall",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "call_id", "robot_id", "skill", "args", "timeout_s"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$"
+    },
+    "call_id": {
+      "type": "string",
+      "description": "Unique id for this skill invocation (uuid recommended).",
+      "minLength": 8
+    },
+    "robot_id": { "type": "string" },
+    "skill": {
+      "type": "string",
+      "description": "Fully-qualified skill name, e.g., base.navigate_to_pose, arm.pick, drone.takeoff."
+    },
+    "args": {
+      "type": "object",
+      "description": "Skill-specific args; validated against the registry's args_schema.",
+      "additionalProperties": true
+    },
+    "constraints": {
+      "type": "object",
+      "description": "Optional runtime constraints overriding defaults (still safety-gated).",
+      "additionalProperties": true,
+      "default": {}
+    },
+    "timeout_s": { "type": "number", "minimum": 0.1, "maximum": 600 },
+
+    "on_failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "policy": { "type": "string", "enum": ["abort", "retry", "fallback"] },
+        "retry": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max_attempts": { "type": "integer", "minimum": 1, "maximum": 5 },
+            "backoff_s": { "type": "number", "minimum": 0, "maximum": 30 }
+          }
+        },
+        "fallback": {
+          "type": "array",
+          "items": { "type": "string", "description": "Fallback skill names or references." },
+          "default": []
+        }
+      },
+      "default": { "policy": "abort" }
+    },
+
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": { "type": "string", "enum": ["user", "llm", "system"] },
+        "request_id": { "type": "string" },
+        "notes": { "type": "string", "maxLength": 300 }
+      },
+      "default": { "source": "llm" }
+    }
+  }
+}

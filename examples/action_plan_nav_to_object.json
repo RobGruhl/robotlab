@@ -1,0 +1,56 @@
+{
+  "schema_version": "0.1",
+  "plan_id": "plan_001",
+  "robot_id": "sim",
+  "goal": { "text": "Go to the red mug." },
+  "assumptions": ["Nav2 is running and map frame is available."],
+  "risks": [
+    {
+      "risk": "Chair may obstruct direct path.",
+      "severity": "medium",
+      "mitigation": "Use navigate_to_pose and avoid manual high-speed approach."
+    }
+  ],
+  "rationale_summary": "Use a conservative nav goal near the mug and stop; do not attempt grasping yet.",
+  "steps": [
+    {
+      "schema_version": "0.1",
+      "call_id": "call_001",
+      "robot_id": "sim",
+      "skill": "common.capture_scene",
+      "args": { "sensor_id": "front_camera", "prompt_hint": "Locate the red mug." },
+      "timeout_s": 10,
+      "constraints": {},
+      "metadata": { "source": "llm", "request_id": "req_abc", "notes": "refresh scene" }
+    },
+    {
+      "schema_version": "0.1",
+      "call_id": "call_002",
+      "robot_id": "sim",
+      "skill": "base.navigate_to_pose",
+      "args": { "frame_id": "map", "x_m": 1.2, "y_m": -0.4, "yaw_rad": 0.0, "tolerance_m": 0.4 },
+      "constraints": { "max_linear_speed_m_s": 0.3 },
+      "timeout_s": 120
+    },
+    {
+      "schema_version": "0.1",
+      "call_id": "call_003",
+      "robot_id": "sim",
+      "skill": "base.stop",
+      "args": {},
+      "timeout_s": 3
+    }
+  ],
+  "fallback_steps": [
+    {
+      "schema_version": "0.1",
+      "call_id": "call_f1",
+      "robot_id": "sim",
+      "skill": "base.stop",
+      "args": {},
+      "timeout_s": 3
+    }
+  ],
+  "success_criteria": ["Robot reaches the goal area within tolerance and stops safely."],
+  "request_more_info": { "needed": false, "question": "" }
+}

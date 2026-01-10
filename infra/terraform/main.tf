@@ -69,11 +69,18 @@ resource "aws_security_group" "isaac_sim" {
 # EC2 Instance - NVIDIA Isaac Sim Development Workstation
 # Supports both on-demand and spot instances via use_spot variable
 resource "aws_instance" "isaac_sim" {
-  ami           = var.isaac_sim_ami
-  instance_type = var.instance_type
-  key_name      = var.key_name
+  ami                  = var.isaac_sim_ami
+  instance_type        = var.instance_type
+  key_name             = var.key_name
+  iam_instance_profile = aws_iam_instance_profile.isaac_sim.name
 
   vpc_security_group_ids = [aws_security_group.isaac_sim.id]
+
+  # Bootstrap Claude Code on first boot
+  user_data = templatefile("${path.module}/user-data.sh.tpl", {
+    region          = var.region
+    github_repo_url = var.github_repo_url
+  })
 
   # Spot instance configuration (only applied when use_spot = true)
   dynamic "instance_market_options" {
@@ -81,8 +88,8 @@ resource "aws_instance" "isaac_sim" {
     content {
       market_type = "spot"
       spot_options {
-        instance_interruption_behavior = "stop"           # Stop (not terminate) on interruption to preserve EBS
-        spot_instance_type             = "persistent"     # Re-request spot when stopped
+        instance_interruption_behavior = "stop"             # Stop (not terminate) on interruption to preserve EBS
+        spot_instance_type             = "persistent"       # Re-request spot when stopped
         max_price                      = var.spot_max_price # Optional price cap, defaults to on-demand price
       }
     }

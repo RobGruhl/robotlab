@@ -30,30 +30,43 @@ make demo-drone-hover   # Drone offboard control demo
 
 Before any robotics work, deploy and verify streaming connectivity.
 
+### Isaac Sim AMI Requirements
+
+- **AMI:** Search AWS Marketplace for "NVIDIA Isaac Sim" → `ami-0a58578db493e70fb` (us-west-2)
+- **Instance type:** Must use `g6e.xlarge` or `g6e.2xlarge` (L40S GPU with NVENC)
+- **Other GPU types (g5, g4dn, etc.) will NOT work** with this AMI
+- **Streaming:** Use NICE DCV client (not WebRTC) at `https://<ip>:8443`
+
 ### Quick Start (Terraform)
 ```bash
 cd infra/terraform
 terraform init
-terraform apply \
-  -var="my_ip_cidr=$(curl -s ifconfig.me)/32" \
-  -var="key_name=your-key" \
-  -var="isaac_sim_ami=ami-xxx"
+
+# Create terraform.tfvars with:
+# my_ip_cidr    = "<your-ip>/32"    # Get with: curl -s -4 ifconfig.me
+# key_name      = "robotlab"
+# isaac_sim_ami = "ami-0a58578db493e70fb"
+# instance_type = "g6e.xlarge"
+# use_spot      = false              # Isaac Sim AMI doesn't support spot
+
+terraform apply
 ```
 
 ### Connect
-1. SSH: `ssh -i ~/.ssh/your-key.pem ubuntu@<ip>`
-2. Verify GPU: `nvidia-smi` (should show L40s)
-3. Start Isaac Sim: `./isaac-sim.sh --/app/livestream/enabled=true`
-4. Mac WebRTC client → `<ip>:49100`
-5. Verify ROS: `ros2 topic list` (should show `/clock`, `/tf`, cameras)
+1. SSH: `ssh -i ~/.ssh/robotlab.pem ubuntu@<ip>`
+2. **Set ubuntu password** (required for DCV): `sudo passwd ubuntu`
+3. Verify GPU: `nvidia-smi` (should show L40S)
+4. Install [NICE DCV Client](https://download.nice-dcv.com/) on your Mac
+5. Connect DCV client to `https://<ip>:8443` with user `ubuntu`
+6. Verify ROS: `ros2 topic list` (should show `/clock`, `/tf`, cameras)
 
 ### Cost Control
 ```bash
-./scripts/stop-instance.sh  # Stop when done (billing stops)
+./scripts/stop-instance.sh  # Stop when done (~$1.50/hr while running)
 ./scripts/start-instance.sh # Resume later
 ```
 
-See `docs/setup/aws-mac-hello-world.md` for detailed guide.
+See `docs/setup/aws-mac-hello-world.md` and `docs/setup/isaac-sim-usage.md` for detailed guides.
 
 ## Repository Structure
 
@@ -183,9 +196,9 @@ The executive never knows if a skill is classical, learned, or hybrid—it just 
 ## Cloud Workflow
 
 - Keep ROS graph co-located (same instance or VPC). **Never run DDS over public internet.**
-- Use WebRTC streaming for Mac thin client (requires NVENC; A100 won't work)
-- Ports: TCP 49100, UDP 47998 for WebRTC; SSH + DCV for workstation access
-- Automate stop-start (Isaac Automator or IaC) to control costs
+- Use **NICE DCV** for remote desktop streaming (port 8443) - requires L40S GPU (g6e instances)
+- Ports: TCP 8443 for DCV, TCP 22 for SSH
+- Automate stop-start via AWS CLI or Terraform to control costs (~$1.20/hr for g6e.xlarge)
 
 ## Demo Metrics (Track From Day One)
 

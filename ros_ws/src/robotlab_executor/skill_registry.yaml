@@ -1,0 +1,361 @@
+registry_version: "0.1"
+default_robot_id: "sim"
+
+# Global guardrails enforced by executor, even if LLM asks otherwise.
+global_safety_limits:
+  base:
+    max_linear_speed_m_s: 0.5
+    max_angular_speed_rad_s: 1.2
+  arm:
+    max_joint_speed_rad_s: 1.5
+    max_cartesian_speed_m_s: 0.25
+  drone:
+    max_horizontal_speed_m_s: 3.0
+    max_vertical_speed_m_s: 1.0
+    max_altitude_m: 5.0
+    geofence:
+      frame_id: "map"
+      # axis-aligned box; keep small in early sims
+      x_min: -10
+      x_max: 10
+      y_min: -10
+      y_max: 10
+      z_min: 0
+      z_max: 5.0
+
+# Standardized precondition DSL: evaluate against robot_state dict.
+# Operators: ==, !=, >, >=, <, <=, in
+# Example paths: "safety.e_stop", "base.mode", "drone.armed"
+# The executor owns the robot_state structure; keep it stable.
+skills:
+
+  # ------------------------
+  # Common / Cognitive
+  # ------------------------
+  common.capture_scene:
+    description: "Request a fresh SceneAnalysis from the VLM pipeline."
+    ros_interface:
+      type: service
+      name: "/robotlab/capture_scene"
+      srv_type: "std_srvs/srv/Trigger"
+    args_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        sensor_id:
+          type: string
+          description: "Which sensor/camera to analyze."
+        prompt_hint:
+          type: string
+          description: "Optional hint for the VLM (short)."
+          maxLength: 200
+    default_constraints: {}
+    preconditions:
+      all:
+        - { path: "safety.e_stop", op: "==", value: false }
+
+  common.report:
+    description: "Emit a human-readable report (log/UI)."
+    ros_interface:
+      type: topic
+      name: "/robotlab/report"
+      msg_type: "std_msgs/msg/String"
+    args_schema:
+      type: object
+      additionalProperties: false
+      required: ["text"]
+      properties:
+        text: { type: string, maxLength: 1000 }
+    default_constraints: {}
+    preconditions:
+      all: []
+
+  # ------------------------
+  # Rolling Base Skills
+  # ------------------------
+  base.stop:
+    description: "Stop the rolling base immediately (publish zero cmd_vel)."
+    ros_interface:
+      type: topic
+      name: "/cmd_vel"
+      msg_type: "geometry_msgs/msg/Twist"
+    args_schema:
+      type: object
+      additionalProperties: false
+      properties: {}
+    default_constraints: {}
+    preconditions:
+      all: []
+
+  base.rotate_in_place:
+    description: "Rotate base by a relative yaw angle."
+    ros_interface:
+      type: action
+      name: "/robotlab/base/rotate_in_place"
+      action_type: "robotlab_msgs/action/RotateInPlace"
+    args_schema:
+      type: object
+      additionalProperties: false
+      required: ["delta_yaw_rad"]
+      properties:
+        delta_yaw_rad: { type: number, minimum: -6.283, maximum: 6.283 }
+    default_constraints:
+      max_angular_speed_rad_s: 1.0
+    preconditions:
+      all:
+        - { path: "safety.e_stop", op: "==", value: false }
+        - { path: "base.control_enabled", op: "==", value: true }
+
+  base.navigate_to_pose:
+    description: "Navigate to a pose in map frame (Nav2 wrapper)."
+    ros_interface:
+      type: action
+      name: "/navigate_to_pose"
+      action_type: "nav2_msgs/action/NavigateToPose"
+    args_schema:
+      type: object
+      additionalProperties: false
+      required: ["frame_id", "x_m", "y_m", "yaw_rad"]
+      properties:
+        frame_id: { type: string, enum: ["map", "odom"] }
+        x_m: { type: number, minimum: -50, maximum: 50 }
+        y_m: { type: number, minimum: -50, maximum: 50 }
+        yaw_rad: { type: number, minimum: -3.1416, maximum: 3.1416 }
+        tolerance_m: { type: number, minimum: 0.05, maximum: 2.0, default: 0.3 }
+    default_constraints:
+      max_linear_speed_m_s: 0.4
+      max_angular_speed_rad_s: 1.0
+      timeout_s: 120
+    preconditions:
+      all:
+        - { path: "safety.e_stop", op: "==", value: false }
+        - { path: "base.nav_ready", op: "==", value: true }
+
+  base.approach_object:
+    description: "Short-range approach to an object using vision (last-meter)."
+    ros_interface:
+      type: action
+      name: "/robotlab/base/approach_object"
+      action_type: "robotlab_msgs/action/ApproachObject"
+    args_schema:
+      type: object
+      additionalProperties: false
+      required: ["object_query"]
+      properties:
+        object_query:
+          type: string
+          description: "Natural reference like 'red cone' or object_id from scene graph."
+          maxLength: 80
+        stop_distance_m: { type: number, minimum: 0.2, maximum: 2.0, default: 0.6 }
+    default_constraints:
+      max_linear_speed_m_s: 0.25
+      timeout_s: 60
+    preconditions:
+      all:
+        - { path: "safety.e_stop", op: "==", value: false }
+        - { path: "base.control_enabled", op: "==", value: true }
+        - { path: "perception.scene_graph_available", op: "==", value: true }
+
+  # ------------------------
+  # Arm Skills
+  # ------------------------
+  arm.stow:
+    description: "Move arm to a safe stow pose."
+    ros_interface:
+      type: action
+      name: "/robotlab/arm/stow"
+      action_type: "robotlab_msgs/action/ArmStow"
+    args_schema:
+      type: object
+      additionalProperties: false
+      properties: {}
+    default_constraints:
+      timeout_s: 30
+    preconditions:
+      all:
+        - { path: "safety.e_stop", op: "==", value: false }
+        - { path: "arm.ready", op: "==", value: true }
+
+  arm.open_gripper:
+    description: "Open gripper."
+    ros_interface:
+      type: service
+      name: "/robotlab/gripper/open"
+      srv_type: "std_srvs/srv/Trigger"
+    args_schema:
+      type: object
+      additionalProperties: false
+      properties: {}
+    default_constraints: {}
+    preconditions:
+      all:
+        - { path: "arm.ready", op: "==", value: true }
+
+  arm.close_gripper:
+    description: "Close gripper."
+    ros_interface:
+      type: service
+      name: "/robotlab/gripper/close"
+      srv_type: "std_srvs/srv/Trigger"
+    args_schema:
+      type: object
+      additionalProperties: false
+      properties: {}
+    default_constraints: {}
+    preconditions:
+      all:
+        - { path: "arm.ready", op: "==", value: true }
+
+  arm.pick:
+    description: "Pick an object using a pose target."
+    ros_interface:
+      type: action
+      name: "/robotlab/arm/pick"
+      action_type: "robotlab_msgs/action/Pick"
+    args_schema:
+      type: object
+      additionalProperties: false
+      required: ["target_frame", "x_m", "y_m", "z_m"]
+      properties:
+        object_query: { type: string, maxLength: 80, description: "Optional, for logging/traceability." }
+        target_frame: { type: string, description: "Frame for target position, usually base_link or map." }
+        x_m: { type: number, minimum: -2.0, maximum: 2.0 }
+        y_m: { type: number, minimum: -2.0, maximum: 2.0 }
+        z_m: { type: number, minimum: 0.0, maximum: 2.0 }
+        yaw_rad: { type: number, minimum: -3.1416, maximum: 3.1416, default: 0.0 }
+        approach_m: { type: number, minimum: 0.02, maximum: 0.25, default: 0.10 }
+        lift_m: { type: number, minimum: 0.02, maximum: 0.35, default: 0.12 }
+    default_constraints:
+      timeout_s: 60
+    preconditions:
+      all:
+        - { path: "safety.e_stop", op: "==", value: false }
+        - { path: "arm.ready", op: "==", value: true }
+        - { path: "arm.gripper_ready", op: "==", value: true }
+
+  arm.place:
+    description: "Place currently held object at a target pose."
+    ros_interface:
+      type: action
+      name: "/robotlab/arm/place"
+      action_type: "robotlab_msgs/action/Place"
+    args_schema:
+      type: object
+      additionalProperties: false
+      required: ["target_frame", "x_m", "y_m", "z_m"]
+      properties:
+        target_frame: { type: string }
+        x_m: { type: number, minimum: -2.0, maximum: 2.0 }
+        y_m: { type: number, minimum: -2.0, maximum: 2.0 }
+        z_m: { type: number, minimum: 0.0, maximum: 2.0 }
+        yaw_rad: { type: number, minimum: -3.1416, maximum: 3.1416, default: 0.0 }
+        retreat_m: { type: number, minimum: 0.02, maximum: 0.35, default: 0.10 }
+    default_constraints:
+      timeout_s: 60
+    preconditions:
+      all:
+        - { path: "safety.e_stop", op: "==", value: false }
+        - { path: "arm.ready", op: "==", value: true }
+
+  # ------------------------
+  # Drone Skills (Autopilot-backed)
+  # ------------------------
+  drone.arm:
+    description: "Arm the drone via autopilot interface."
+    ros_interface:
+      type: service
+      name: "/robotlab/drone/arm"
+      srv_type: "std_srvs/srv/Trigger"
+    args_schema:
+      type: object
+      additionalProperties: false
+      properties: {}
+    default_constraints:
+      timeout_s: 10
+    preconditions:
+      all:
+        - { path: "safety.e_stop", op: "==", value: false }
+        - { path: "drone.preflight_ok", op: "==", value: true }
+        - { path: "drone.armed", op: "==", value: false }
+
+  drone.takeoff:
+    description: "Take off to a safe altitude and stabilize."
+    ros_interface:
+      type: action
+      name: "/robotlab/drone/takeoff"
+      action_type: "robotlab_msgs/action/DroneTakeoff"
+    args_schema:
+      type: object
+      additionalProperties: false
+      required: ["altitude_m"]
+      properties:
+        altitude_m: { type: number, minimum: 0.5, maximum: 5.0 }
+    default_constraints:
+      max_vertical_speed_m_s: 0.8
+      timeout_s: 30
+    preconditions:
+      all:
+        - { path: "safety.e_stop", op: "==", value: false }
+        - { path: "drone.armed", op: "==", value: true }
+        - { path: "drone.offboard_ready", op: "==", value: true }
+
+  drone.hover:
+    description: "Hold position for a duration."
+    ros_interface:
+      type: action
+      name: "/robotlab/drone/hover"
+      action_type: "robotlab_msgs/action/DroneHover"
+    args_schema:
+      type: object
+      additionalProperties: false
+      required: ["duration_s"]
+      properties:
+        duration_s: { type: number, minimum: 1, maximum: 120 }
+    default_constraints:
+      timeout_s: 130
+    preconditions:
+      all:
+        - { path: "drone.in_air", op: "==", value: true }
+        - { path: "drone.offboard_active", op: "==", value: true }
+
+  drone.goto:
+    description: "Fly to a local waypoint in map (or local ENU) frame."
+    ros_interface:
+      type: action
+      name: "/robotlab/drone/goto"
+      action_type: "robotlab_msgs/action/DroneGoto"
+    args_schema:
+      type: object
+      additionalProperties: false
+      required: ["frame_id", "x_m", "y_m", "z_m"]
+      properties:
+        frame_id: { type: string, enum: ["map", "odom"] }
+        x_m: { type: number, minimum: -50, maximum: 50 }
+        y_m: { type: number, minimum: -50, maximum: 50 }
+        z_m: { type: number, minimum: 0.5, maximum: 10.0 }
+        yaw_rad: { type: number, minimum: -3.1416, maximum: 3.1416, default: 0.0 }
+    default_constraints:
+      max_horizontal_speed_m_s: 2.0
+      max_altitude_m: 5.0
+      timeout_s: 60
+    preconditions:
+      all:
+        - { path: "drone.in_air", op: "==", value: true }
+        - { path: "drone.offboard_active", op: "==", value: true }
+
+  drone.land:
+    description: "Land and disarm (if configured)."
+    ros_interface:
+      type: action
+      name: "/robotlab/drone/land"
+      action_type: "robotlab_msgs/action/DroneLand"
+    args_schema:
+      type: object
+      additionalProperties: false
+      properties: {}
+    default_constraints:
+      max_vertical_speed_m_s: 0.6
+      timeout_s: 45
+    preconditions:
+      all:
+        - { path: "drone.in_air", op: "==", value: true }

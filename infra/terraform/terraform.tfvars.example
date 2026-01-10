@@ -5,18 +5,23 @@ region        = "us-west-2"
 key_name      = "robotlab"
 isaac_sim_ami = "ami-0a58578db493e70fb"
 
-# Get your IP: curl -s https://api.ipify.org
+# Get your IP (use -4 to force IPv4): curl -s -4 ifconfig.me
 my_ip_cidr = "YOUR_IP/32"
 
+# Your GitHub repo URL (for bootstrap scripts)
+github_repo_url = "https://github.com/YOUR_USERNAME/robotlab.git"
+
+# IMPORTANT: Isaac Sim AMI ONLY works with g6e instances (L40S GPU)
+# Other GPU types (g5, g4dn, etc.) will fail with "UnsupportedOperation"
+#
 # Instance type options:
-#   g6e.2xlarge  - L40s GPU, best for streaming ($1.50/hr on-demand, ~$0.50 spot)
-#   g5.xlarge    - A10G GPU, training + streaming ($1.00/hr on-demand, ~$0.35 spot)
-#   g4dn.xlarge  - T4 GPU, budget option ($0.50/hr on-demand, ~$0.15 spot)
-instance_type = "g5.xlarge"
+#   g6e.xlarge   - L40S GPU, 4 vCPU, 32GB RAM (~$1.20/hr on-demand)
+#   g6e.2xlarge  - L40S GPU, 8 vCPU, 64GB RAM (~$1.50/hr on-demand)
+instance_type = "g6e.xlarge"
 
-# Spot instances: ~70% cheaper, but can be interrupted with 2 min warning
-# Good for dev/training, not for production demos
-use_spot = true
+# IMPORTANT: Spot instances are NOT supported for the Isaac Sim AMI
+# Must be set to false
+use_spot = false
 
-# Optional: cap spot price (empty = on-demand price as max)
-# spot_max_price = "0.50"
+# Optional: cap spot price (not applicable when use_spot = false)
+# spot_max_price = ""

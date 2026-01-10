@@ -52,3 +52,15 @@ variable "spot_max_price" {
   type        = string
   default     = "" # Empty = on-demand price (no cap)
 }
+
+variable "persist_volume_size" {
+  description = "Size of persistent EBS volume for Claude Code state, repo, and rosbags (GB)"
+  type        = number
+  default     = 100
+}
+
+variable "github_repo_url" {
+  description = "GitHub repository URL for robotlab (SSH or HTTPS)"
+  type        = string
+  default     = "https://github.com/YOUR_USERNAME/robotlab.git"
+}

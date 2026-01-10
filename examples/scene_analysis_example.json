@@ -1,0 +1,36 @@
+{
+  "schema_version": "0.1",
+  "timestamp": 1767830400.12,
+  "robot_id": "sim",
+  "sensor_id": "front_camera",
+  "camera_frame": "camera_link",
+  "image": { "width": 1280, "height": 720, "encoding": "rgb8" },
+  "objects": [
+    {
+      "id": "obj_1",
+      "label": "mug",
+      "synonyms": ["cup"],
+      "confidence": 0.86,
+      "bbox_norm": { "x_min": 0.42, "y_min": 0.51, "x_max": 0.55, "y_max": 0.78 },
+      "dominant_color": "red",
+      "attributes": { "on_surface": "table" }
+    }
+  ],
+  "obstacles": [
+    {
+      "type": "furniture",
+      "label": "chair",
+      "severity": "medium",
+      "confidence": 0.72,
+      "region_hint": "right",
+      "bbox_norm": { "x_min": 0.72, "y_min": 0.38, "x_max": 0.95, "y_max": 0.92 }
+    }
+  ],
+  "relations": [],
+  "summary": {
+    "text": "A red mug is on a table near the center. A chair occupies the right side; keep clearance if driving forward.",
+    "confidence": 0.78
+  },
+  "warnings": [],
+  "model_info": { "provider": "anthropic", "model": "claude", "latency_ms": 820 }
+}
