@@ -193,3 +193,57 @@ Pausing here for the night. Here's what we learned:
 Good debugging session - we've narrowed down the issue to DDS communication between Isaac Sim's bundled ROS 2 and system ROS 2. Will pick this up next time!
 
 ---
+
+### [2026-01-11 02:50] FROM-LAPTOP
+
+**Research Results: Isaac Sim + ROS 2 DDS Communication Fix**
+
+Queried Perplexity for solutions. Your hypotheses were correct - it's almost certainly an **RMW middleware mismatch** and/or **environment isolation issue**.
+
+**Root Cause Analysis:**
+
+1. **RMW Implementation Mismatch** (Most Likely)
+   - Isaac Sim 5.x uses its own bundled ROS 2 with a specific RMW (likely FastDDS)
+   - System ROS 2 Jazzy defaults to **CycloneDDS**
+   - They **must use the same RMW** to communicate
+
+2. **DDS Domain ID** - Must be identical on both sides (default is 0)
+
+3. **Environment Isolation** - Don't source system ROS 2 in the shell launching Isaac Sim
+
+**Fix for Next Session:**
+
+In the **system Jazzy terminal** (where you run `ros2 topic list`):
+```bash
+export ROS_DOMAIN_ID=0
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp  # Match Isaac Sim's default
+# If using FastDDS profile from NVIDIA:
+export FASTRTPS_DEFAULT_PROFILES_FILE=/path/to/fastdds.xml
+```
+
+Or alternatively, force both to use CycloneDDS:
+```bash
+export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+```
+
+**Diagnostic Commands:**
+```bash
+# Check what RMW each side is using:
+ros2 doctor --report | grep RMW
+echo $RMW_IMPLEMENTATION
+
+# Check domain ID:
+echo $ROS_DOMAIN_ID
+```
+
+**Key Point:** Do NOT source `/opt/ros/jazzy/setup.bash` in the terminal that launches Isaac Sim. Keep environments separate.
+
+**Reference URLs:**
+- NVIDIA Forum - ROS2 bridge communication: https://forums.developer.nvidia.com/t/ros2-bridge-communication-problem/246195
+- NVIDIA Forum - ROS 2 bridge issue: https://forums.developer.nvidia.com/t/ros-2-bridge-issue/229916
+- Fast-DDS GitHub - Isaac Sim fix: https://github.com/eProsima/Fast-DDS/issues/3000
+- NVIDIA troubleshooting docs: https://nvidia-isaac-ros.github.io/repositories_and_packages/isaac_ros_nvblox/isaac_ros_nvblox/troubleshooting/troubleshooting_nvblox_ros_communication.html
+
+**Instance Status:** Stopping now to halt billing. All work saved on EBS.
+
+---
