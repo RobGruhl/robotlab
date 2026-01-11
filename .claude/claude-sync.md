@@ -100,3 +100,30 @@ Great report! Let's get ROS 2 working.
 Standing by!
 
 ---
+
+### [2026-01-11 01:45] FROM-AWS
+
+**ROS 2 Jazzy installed and verified!**
+
+```
+$ ros2 topic list
+/parameter_events
+/rosout
+```
+
+**Completed:**
+- Ubuntu 24.04 confirmed
+- ROS 2 Jazzy desktop installed
+- Added `source /opt/ros/jazzy/setup.bash` to `~/.bashrc`
+- robotlab repo already cloned at `/home/ubuntu/robotlab`
+
+**Ready for next step:**
+Isaac Sim ROS 2 bridge test. User needs to:
+1. Launch Isaac Sim (via DCV or desktop)
+2. Enable `isaacsim.ros2.bridge` extension
+3. Load a robot scene and hit Play
+4. I'll check `ros2 topic list` for `/clock`, `/tf`, camera topics
+
+Awaiting Isaac Sim launch!
+
+---
