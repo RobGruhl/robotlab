@@ -203,6 +203,141 @@ ros2 topic pub /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.0}, angular: {z:
 ros2 topic pub /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.0}, angular: {z: 0.0}}" --once
 ```
 
+## Reading Physics State (Isaac Sim 5.x / Fabric Mode)
+
+### The Problem: USD APIs Return Stale Data
+
+In Isaac Sim 5.x, **Fabric** is enabled by default for performance. This means USD stage transforms are **stale** during simulation - they show the authoring pose, not the live physics state.
+
+**These do NOT work for live physics:**
+```python
+# All return initial position, never update during sim
+xformable.ComputeLocalToWorldTransform(0)
+cache = UsdGeom.XformCache(); cache.GetLocalToWorldTransform(prim)
+XFormPrim("/World/jetbot").get_world_pose()
+```
+
+**The physics position IS updating** (you can see /odom changing, robot moves in viewport), but USD-based Python APIs can't read it.
+
+### Solution: Use PhysX View APIs
+
+For articulated robots (Jetbot, arms, etc.), use PhysX views:
+
+```python
+# Get real-time physics pose
+root_pos, root_quat = robot.root_physx_view.get_world_poses()
+
+# Or via data buffers (Isaac Lab style)
+position = robot.data.root_state_w[:, :3]     # [N_envs, 3] - x, y, z
+orientation = robot.data.root_state_w[:, 3:7]  # [N_envs, 4] - qw, qx, qy, qz
+```
+
+**View classes** (from `isaaclab.sim.views`):
+
+| Class | Use Case |
+|-------|----------|
+| `ArticulationView` | Robots with joints |
+| `RigidPrimView` / `RigidBodyView` | Non-articulated rigid bodies |
+| `ContactSensorView` | Contact/force sensing |
+| `XformPrimView` | Non-physics prims only (cameras, markers) |
+
+### Physics Callbacks
+
+For logic that must see up-to-date physics, subscribe to **physics step events**, not frame/timeline/app events.
+
+**Isaac Lab Tasks:**
+```python
+class MyTask(DirectRLEnv):
+    def pre_physics_step(self, actions):
+        # Called BEFORE physics step - apply actions here
+        pass
+
+    def post_physics_step(self):
+        # Called AFTER physics step - read state here
+        root_pos, root_quat = self.robot.root_physx_view.get_world_poses()
+```
+
+**Standalone Script:**
+```python
+from omni.isaac.core import SimulationContext
+
+sim = SimulationContext(physics_prim_path="/World/PhysicsScene")
+sim.initialize_physics()
+
+while sim.is_playing():
+    sim.step(render=True)
+    # Read physics state HERE via PhysX views
+    pos, quat = robot.root_physx_view.get_world_poses()
+```
+
+**Kit/Extension (GUI):**
+```python
+from omni.physx import get_physx_interface
+
+class MyExtension:
+    def on_startup(self):
+        self._physx = get_physx_interface()
+        self._sub = self._physx.subscribe_physics_step_events(self._on_physics_step)
+
+    def _on_physics_step(self, dt):
+        # Use PhysX views here, not USD
+        pass
+```
+
+### Example: Chase Camera
+
+To make a camera follow a moving robot:
+
+```python
+def _on_physics_step(self, dt):
+    # Get REAL position via PhysX view
+    robot_pos, robot_quat = self.robot.root_physx_view.get_world_poses()
+
+    # Compute camera offset and update
+    camera_pos = robot_pos + self._compute_offset(robot_quat)
+    self.camera.set_world_pose(camera_pos, look_at_quat)
+```
+
+**Key:** Must use `root_physx_view.get_world_poses()`, NOT USD APIs.
+
+### Ground Plane Collision Issues
+
+If robots fall through programmatically created ground planes:
+
+**Causes:**
+- Missing `PhysicsCollisionAPI` on the prim
+- `physics:collisionEnabled = False`
+- Visual mesh without collision geometry
+
+**Solutions:**
+
+```python
+# Option 1: Use Isaac Lab GroundPlaneCfg
+from isaaclab.sim import GroundPlaneCfg
+cfg_ground = GroundPlaneCfg()
+cfg_ground.func("/World/defaultGroundPlane", cfg_ground)
+
+# Option 2: Manually apply collision API
+from pxr import UsdPhysics
+prim = stage.GetPrimAtPath("/World/MyGroundPlane")
+UsdPhysics.CollisionAPI.Apply(prim)
+
+# Option 3: Toggle trick (if collision "sleeps")
+prim.GetAttribute("physics:collisionEnabled").Set(False)
+prim.GetAttribute("physics:collisionEnabled").Set(True)
+```
+
+### Disabling Fabric (Not Recommended)
+
+If you absolutely need USD transforms (at performance cost):
+
+```python
+from omni.isaac.core import SimulationCfg
+cfg = SimulationCfg(use_fabric=False)
+```
+
+This routes through USD but is slower than PhysX views.
+
 ## Troubleshooting
 
 ### Cache Permission Errors
