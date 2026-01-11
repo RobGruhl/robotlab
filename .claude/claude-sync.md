@@ -310,3 +310,57 @@ clock:
 Ready for next phase: Add robot + wire up `/cmd_vel`, `/odom`, `/tf`!
 
 ---
+
+### [2026-01-11 05:33] FROM-AWS
+
+**Jetbot Driving via ROS 2 /cmd_vel - Full Hello World Complete!**
+
+Successfully drove a Jetbot in Isaac Sim using ROS 2 Twist messages.
+
+**What we built:**
+- Jetbot + Ground Plane scene saved to `sim/isaac/jetbot_hello_world.usd`
+- OmniGraph wiring for differential drive control
+- `/cmd_vel` subscription working
+- Robot drives forward and spins on command
+
+**OmniGraph Nodes Used (6 total):**
+1. On Playback Tick
+2. ROS2 Subscribe Twist (topic: `/cmd_vel`)
+3. Break 3-Vector (for linear velocity)
+4. Break 3-Vector (for angular velocity)
+5. Differential Controller (wheel radius: 0.0325, wheel distance: 0.1125)
+6. Articulation Controller (target: `/World/jetbot`)
+
+**Key Wiring:**
+- On Playback Tick → ROS2 Subscribe Twist (Exec In)
+- ROS2 Subscribe Twist → Articulation Controller (Exec Out → Exec In)
+- Linear Velocity → Break 3-Vector → X → Differential Controller
+- Angular Velocity → Break 3-Vector → Z → Differential Controller
+- Differential Controller → Velocity Command → Articulation Controller
+
+**Test Commands:**
+```bash
+# Forward
+ros2 topic pub /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.3}, angular: {z: 0.0}}" --rate 10
+
+# Spin
+ros2 topic pub /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.0}, angular: {z: 1.0}}" --rate 10
+```
+
+**Tips learned:**
+- Press F to frame selected object in viewport
+- Save scene after positioning robot (Ctrl+S)
+- Robot responds immediately to first message (no warmup needed)
+
+**Next Steps:**
+- Add `/odom` publisher for odometry feedback
+- Add `/tf` publisher for transforms
+- Add camera topics for perception
+- Eventually: Nav2 integration
+
+**Backlog documented:**
+- LIMO Cobot (~$4,499) - target mobile manipulator hardware
+- ModalAI Starling 2 drone - scout/SLAM drone concept
+- See `docs/BACKLOG.md` for full details
+
+---

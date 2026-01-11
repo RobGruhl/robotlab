@@ -153,6 +153,51 @@ ros2 topic echo /clock --once  # Should show sim time
 - `ROS2 Publish Odometry` - publishes /odom
 - `ROS2 Publish Camera Info` + `ROS2 Publish Image` - camera topics
 
+### Driving a Robot with /cmd_vel (Differential Drive)
+
+Control a wheeled robot (Jetbot, LIMO, etc.) via ROS 2 Twist messages.
+
+**Nodes needed (6 total):**
+1. `On Playback Tick`
+2. `ROS2 Subscribe Twist`
+3. `Break 3-Vector` (for linear velocity)
+4. `Break 3-Vector` (for angular velocity)
+5. `Differential Controller`
+6. `Articulation Controller`
+
+**Connections:**
+
+| From Node | From Port | To Node | To Port |
+|-----------|-----------|---------|---------|
+| On Playback Tick | Tick | ROS2 Subscribe Twist | Exec In |
+| ROS2 Subscribe Twist | Exec Out | Articulation Controller | Exec In |
+| ROS2 Subscribe Twist | Linear Velocity | Break 3-Vector (1st) | Vector |
+| ROS2 Subscribe Twist | Angular Velocity | Break 3-Vector (2nd) | Vector |
+| Break 3-Vector (1st) | X | Differential Controller | Linear Velocity |
+| Break 3-Vector (2nd) | Z | Differential Controller | Angular Velocity |
+| Differential Controller | Velocity Command | Articulation Controller | Velocity Command |
+
+**Node Configuration:**
+
+| Node | Property | Value (Jetbot) |
+|------|----------|----------------|
+| ROS2 Subscribe Twist | Topic Name | `/cmd_vel` |
+| Differential Controller | Wheel Radius | `0.0325` |
+| Differential Controller | Wheel Distance | `0.1125` |
+| Articulation Controller | Robot Path | `/World/jetbot` |
+
+**Test commands:**
+```bash
+# Forward
+ros2 topic pub /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.3}, angular: {z: 0.0}}" --rate 10
+
+# Spin in place
+ros2 topic pub /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.0}, angular: {z: 1.0}}" --rate 10
+
+# Stop
+ros2 topic pub /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.0}, angular: {z: 0.0}}" --once
+```
+
 ## Troubleshooting
 
 ### Cache Permission Errors
