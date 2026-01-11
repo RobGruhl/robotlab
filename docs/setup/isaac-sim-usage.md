@@ -11,8 +11,32 @@ This guide covers Isaac Sim setup, ROS 2 integration, and common troubleshooting
 
 ## Launching Isaac Sim
 
-### From Desktop (via DCV)
+### Working Configuration (ROS 2 Bridge Enabled)
 
+**Always kill existing instances first:**
+```bash
+pkill -9 -f "isaac-sim|kit/kit"
+```
+
+**Launch with clean environment** (required for ROS 2 bridge to work):
+```bash
+cd /opt/IsaacSim && env -i HOME=$HOME DISPLAY=$DISPLAY \
+  PATH=/usr/local/bin:/usr/bin:/bin \
+  ROS_DISTRO=jazzy \
+  RMW_IMPLEMENTATION=rmw_fastrtps_cpp \
+  LD_LIBRARY_PATH=/opt/IsaacSim/exts/isaacsim.ros2.bridge/jazzy/lib \
+  ./isaac-sim.sh
+```
+
+**Why each variable:**
+- `env -i` - Start with clean environment (no inherited ROS 2 paths)
+- `ROS_DISTRO=jazzy` - Tell Isaac Sim which ROS 2 distro to use
+- `RMW_IMPLEMENTATION=rmw_fastrtps_cpp` - Use FastDDS (Isaac Sim's default)
+- `LD_LIBRARY_PATH` - Point to Isaac Sim's internal ROS 2 libraries (Python 3.11 compatible)
+
+### Simple Launch (No ROS 2)
+
+If you don't need ROS 2 integration:
 ```bash
 /opt/IsaacSim/isaac-sim.sh
 ```
@@ -91,9 +115,43 @@ Dragging a robot USD file into the scene creates a **physics object only**. It w
 
 To get ROS 2 topics (`/clock`, `/tf`, `/cmd_vel`, cameras):
 1. Use pre-wired sample scenes that include OmniGraph action graphs
-2. Or manually add ROS 2 bridge nodes via Window > Extensions > OmniGraph
+2. Or manually add ROS 2 bridge nodes (see below)
 
 Pre-wired scenes may require NVIDIA Nucleus asset downloads (see troubleshooting below).
+
+### Adding ROS 2 Publishers via OmniGraph (Step-by-Step)
+
+Minimal example: Add a `/clock` publisher to verify ROS 2 bridge is working.
+
+**1. Open Action Graph Editor**
+- Window → Visual Scripting → Action Graph
+- Click "New Action Graph" (or select existing one and click "Edit Action Graph")
+- The graph can be created under World or at root level
+
+**2. Add Nodes** (right-click in graph canvas → search):
+- `On Playback Tick` (triggers every simulation frame)
+- `Isaac Read Simulation Time` (reads current sim time)
+- `ROS2 Publish Clock` (publishes to /clock topic)
+
+**3. Connect Nodes**
+- Drag from `On Playback Tick` → `Tick` output to `ROS2 Publish Clock` → `Exec In`
+- Drag from `Isaac Read Simulation Time` → `Simulation Time` to `ROS2 Publish Clock` → `Time Stamp`
+
+**4. Press Play** (toolbar play button)
+
+**5. Verify in ROS 2 Terminal**
+```bash
+source /opt/ros/jazzy/setup.bash
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+ros2 topic list          # Should show /clock
+ros2 topic echo /clock --once  # Should show sim time
+```
+
+**Common OmniGraph nodes for robots:**
+- `ROS2 Publish Transform Tree` - publishes /tf
+- `ROS2 Subscribe Twist` - subscribes to /cmd_vel
+- `ROS2 Publish Odometry` - publishes /odom
+- `ROS2 Publish Camera Info` + `ROS2 Publish Image` - camera topics
 
 ## Troubleshooting
 

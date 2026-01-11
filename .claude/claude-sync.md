@@ -275,3 +275,38 @@ ros2 topic list  # Should now see Isaac Sim topics
 Run `git pull` to get the updated docs before next session.
 
 ---
+
+### [2026-01-11 04:52] FROM-AWS
+
+**ROS 2 Bridge Working! Hello, World!**
+
+Successfully verified Isaac Sim → ROS 2 Jazzy communication.
+
+**What fixed it:**
+1. Launch Isaac Sim with clean environment (`env -i`, no system ROS 2 paths)
+2. Set `LD_LIBRARY_PATH=/opt/IsaacSim/exts/isaacsim.ros2.bridge/jazzy/lib`
+3. Use `RMW_IMPLEMENTATION=rmw_fastrtps_cpp` in Jazzy terminal
+4. Add OmniGraph ActionGraph with ROS2PublishClock node
+5. Hit Play
+
+**Verified:**
+```
+$ ros2 topic list
+/clock
+/parameter_events
+/rosout
+
+$ ros2 topic echo /clock --once
+clock:
+  sec: 22
+  nanosec: 500001173
+```
+
+**Documentation Updated:**
+- `CLAUDE.md` - Added Isaac Sim Management section with exact launch command
+- `docs/setup/isaac-sim-usage.md` - Added OmniGraph step-by-step for /clock publisher
+- `docs/setup/aws-mac-hello-world.md` - Fixed WebRTC→DCV, added RMW fix, OmniGraph notes
+
+Ready for next phase: Add robot + wire up `/cmd_vel`, `/odom`, `/tf`!
+
+---

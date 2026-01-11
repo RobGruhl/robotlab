@@ -13,6 +13,15 @@ With a shared LLM/VLM cognitive layer for scene understanding, goal interpretati
 
 **Core constraint**: Everything runs in simulation first; swapping to real hardware should require only driver changes, not architecture rewrites.
 
+## Claude Sync Channel
+
+**`.claude/claude-sync.md`** is an async communication channel between Claude Code instances (AWS and laptop). Use it to:
+- Share status updates and debugging findings
+- Coordinate tasks across sessions
+- Document what works/doesn't work
+
+**Protocol:** Pull before reading, append new messages at the bottom with timestamp and source (e.g., `### [YYYY-MM-DD HH:MM] FROM-AWS`), push after writing.
+
 ## Build & Run Commands
 
 ```bash
@@ -193,29 +202,43 @@ The executive never knows if a skill is classical, learned, or hybrid—it just 
 - **Autopilot**: PX4 via uXRCE-DDS (primary) or ArduPilot via AP_DDS
 - **Nodes**: Python (rclpy) first for speed; optimize later
 
+## Isaac Sim Management
+
+**Before launching Isaac Sim**, always kill existing instances:
+```bash
+pkill -9 -f "isaac-sim|kit/kit"
+```
+
+**Launch with ROS 2 bridge working** (clean environment, no system ROS 2 paths):
+```bash
+cd /opt/IsaacSim && env -i HOME=$HOME DISPLAY=$DISPLAY \
+  PATH=/usr/local/bin:/usr/bin:/bin \
+  ROS_DISTRO=jazzy \
+  RMW_IMPLEMENTATION=rmw_fastrtps_cpp \
+  LD_LIBRARY_PATH=/opt/IsaacSim/exts/isaacsim.ros2.bridge/jazzy/lib \
+  ./isaac-sim.sh
+```
+
+**Why the clean environment?** Isaac Sim uses Python 3.11 exclusively; system ROS 2 Jazzy uses Python 3.12. Sourcing `/opt/ros/jazzy/setup.bash` before launching causes rclpy import failures.
+
+**The Python 3.11 escape hatch:** Isaac Sim's internal ROS 2 bridge and external ROS 2 nodes communicate via DDS regardless of Python version. Run Isaac Sim with its internal Python 3.11 environment, run ROS 2 nodes externally with system Python 3.12. DDS handles transport - no shared Python needed. This saves days of environment pain.
+
+**In your ROS 2 terminal** (separate from Isaac Sim):
+```bash
+source /opt/ros/jazzy/setup.bash
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+export ROS_DOMAIN_ID=0
+ros2 topic list  # Should see /clock if ActionGraph is wired
+```
+
+**Important:** Raw USD robots dragged into the scene don't publish ROS 2 topics. You must add OmniGraph nodes (see `docs/setup/isaac-sim-usage.md` for step-by-step).
+
 ## Cloud Workflow
 
 - Keep ROS graph co-located (same instance or VPC). **Never run DDS over public internet.**
 - Use **NICE DCV** for remote desktop streaming (port 8443) - requires L40S GPU (g6e instances)
 - Ports: TCP 8443 for DCV, TCP 22 for SSH
 - Automate stop-start via AWS CLI or Terraform to control costs (~$2.40/hr for g6e.2xlarge)
-
-## ROS 2 + Isaac Sim Integration
-
-**Critical**: Isaac Sim's bundled ROS 2 and system ROS 2 Jazzy use different DDS middleware by default.
-
-Fix: In your Jazzy terminal, match Isaac Sim's RMW:
-```bash
-export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
-export ROS_DOMAIN_ID=0
-ros2 topic list  # Should now see Isaac Sim topics
-```
-
-See `docs/setup/isaac-sim-usage.md` for full troubleshooting guide including:
-- Cache permission errors
-- Environment isolation (don't source system ROS in Isaac Sim terminal)
-- OmniGraph wiring for ROS 2 topics
-- QoS configuration for sim cameras
 
 ## Demo Metrics (Track From Day One)
 
