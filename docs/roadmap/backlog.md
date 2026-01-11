@@ -95,6 +95,11 @@ See `.claude/claude-sync.md` for detailed research requests. Key blockers:
 
 ---
 
+## Infrastructure Improvements
+
+- [ ] CloudWatch agent for GPU metrics (utilization, memory, temp) - helps with cost monitoring
+- [ ] Test deadman switch end-to-end
+
 ## Future Ideas
 
 - **Swarm coordination:** Multiple LIMO-class bases with shared map
