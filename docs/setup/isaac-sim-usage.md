@@ -1,33 +1,173 @@
-Additional details
-Usage instructions
-Prerequisites: To create and use Workstation instances you will need:
-AWS Account
-AWS Key Pair created for authentication
-AWS security group to control access to ports
-Port 22 for SSH
-Port 8443 for connecting with NICE DCV
-PuTTY to SSH into the AMI instance (Windows)
-NICE DCV client
-Launch the AMI: Navigate to the AWS Omniverse AMI marketplace product page.
-To create your own AWS instance, select the View purchase options button
-If you have not already subscribed to the software, you will need to Accept Terms the first time. This may take a few minutes to complete.
-When the subscription is completed, click the Continue to Configuration button
-On the Configure this software page list, click the Continue to Launch button
-On the Launch this software page:
-Set the Choose Action option to Launch through EC2
-Click the Launch button
-When the EC2 page opens, name your instance
-Set the Instance type to g6e.2xlarge if not already listed
-Set the Key Pair (login) to use your Key Pair file
-In the Network settings section, select the Select existing security group option. In the Common security groups dropdown select your security group
-In the Summary section on the right side of the page, click Launch instance
-Find your named instance in the table. It will take a few minutes for the instance state to change from Initializing to Running
-Connect to the AMI Instance Before you log in, make sure that:
-Your AMI instance is running
-PuTTY is installed
-NICE DCV Client is installed
-Key Pair created
-Follow the instructions below depending on the OS you are running and the instance type.
+# Isaac Sim Usage Guide
 
-a) Using PuTTY to connect for Linux instances - Copy the Public IP Address of your instance. You can find this by - Pick the checkbox next to your instance to select it - In the information panel below the table, find the Public IPv4 address and copy it - Open up PuTTY - In the Host Name (or IP Address) input paste your instances Public IPv4 address - Expand Connection > SSH > Auth > Credentials. Browse to the location of your Key Pair, and select it - Select Open in the PuTTY dialog to connect. - When you are connected to the AMI, change the password. The password needs to be changed in order for the NICE DCV connection to work. - Change the password for the ubuntu account in order to use the Amazon DCV client. Using sudo passwd ubuntu The password needs to be set via SSH/PuTTY each time a new instance is created, this is by design for security reasons - Enter a new password. Check your session is running by using sudo dcv list-sessions. There should be a console session running. b) Using EC2 to Connect for Windows Instances - Select your instance from the EC2 page and from the toolbar select Connect - On the Connect to instance page select the RDP Client tab - Set your username and then select Get password - Upload your private key file associated with the instance and select Decrypt password - Use this username and password to log in when you connect with DCV Client c) Connect to the Instance with DCV Client - Open the Amazon DCV Client and enter the public IP address of your instance in this format (https://<public IPv4>:8443), followed by Connect. - If you see the Server Identity Check message, select Trust and Connect - Log in using the Username: ubuntu and the password that you just set in PuTTY followed by the Login button - The Ubuntu desktop GUI will now be displayed in the Amazon DCV window
-Congratulations! You have now logged in to your AMI instance. It is ready for use.
+This guide covers Isaac Sim setup, ROS 2 integration, and common troubleshooting.
+
+## Prerequisites
+
+- AWS account with EC2 access
+- g6e.2xlarge instance (L40S GPU with NVENC required for streaming)
+- NICE DCV client installed on your Mac
+- SSH key pair for authentication
+
+## Launching Isaac Sim
+
+### From Desktop (via DCV)
+
+```bash
+/opt/IsaacSim/isaac-sim.sh
+```
+
+### With Selector UI
+
+```bash
+/opt/IsaacSim/isaac-sim.selector.sh
+```
+
+### First Launch Notes
+
+- **Shader compilation takes 5-10 minutes** on first run
+- You will see "not responding" dialogs - click "Wait", don't force quit
+- Once compiled, shaders are cached and future launches are fast
+- Watch the terminal for progress messages
+
+## ROS 2 Integration
+
+### Critical Constraint: Python 3.11 Only
+
+Isaac Sim is compatible with **Python 3.11 only**. This creates a version mismatch:
+- Isaac Sim: Python 3.11 with bundled ROS 2 libraries
+- ROS 2 Jazzy (Ubuntu 24.04): Python 3.12
+- ROS 2 Humble (Ubuntu 22.04): Python 3.10
+
+**Solution**: Run Isaac Sim and external ROS 2 nodes as separate processes. DDS handles transport regardless of Python version - they communicate over the network layer, not through Python imports.
+
+### DDS/RMW Configuration (CRITICAL)
+
+Isaac Sim's bundled ROS 2 and system ROS 2 Jazzy use **different DDS middleware by default**:
+- Isaac Sim: FastDDS (rmw_fastrtps_cpp)
+- ROS 2 Jazzy: CycloneDDS (rmw_cyclonedds_cpp)
+
+**They must use the same RMW implementation to see each other's topics.**
+
+#### Fix: Match RMW in Your Jazzy Terminal
+
+```bash
+# Before running ros2 commands
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+export ROS_DOMAIN_ID=0
+
+# Now you should see Isaac Sim topics
+ros2 topic list
+```
+
+#### Diagnostic Commands
+
+```bash
+# Check what RMW is in use
+ros2 doctor --report | grep RMW
+echo $RMW_IMPLEMENTATION
+
+# Check domain ID
+echo $ROS_DOMAIN_ID
+```
+
+#### Alternative: Force CycloneDDS on Both Sides
+
+If you prefer CycloneDDS, you can configure Isaac Sim to use it instead. Check Isaac Sim's ROS 2 settings or environment variables.
+
+### Environment Isolation
+
+**Do NOT source system ROS 2 in the terminal that launches Isaac Sim.**
+
+- Isaac Sim has its own ROS 2 environment
+- Mixing environments causes conflicts
+- Keep terminals separate:
+  - Terminal 1: Launch Isaac Sim (no ROS 2 sourced)
+  - Terminal 2: `source /opt/ros/jazzy/setup.bash` + ROS 2 commands
+
+### Raw USD Robots Need OmniGraph Wiring
+
+Dragging a robot USD file into the scene creates a **physics object only**. It won't publish ROS 2 topics automatically.
+
+To get ROS 2 topics (`/clock`, `/tf`, `/cmd_vel`, cameras):
+1. Use pre-wired sample scenes that include OmniGraph action graphs
+2. Or manually add ROS 2 bridge nodes via Window > Extensions > OmniGraph
+
+Pre-wired scenes may require NVIDIA Nucleus asset downloads (see troubleshooting below).
+
+## Troubleshooting
+
+### Cache Permission Errors
+
+**Error**: `Failed to create local file data store at '/opt/IsaacSim/kit/cache'`
+
+**Fix**:
+```bash
+sudo mkdir -p /opt/IsaacSim/kit/cache
+sudo chown -R ubuntu:ubuntu /opt/IsaacSim/kit/cache
+```
+
+### Isaac Sim Crashes During apt install
+
+**Cause**: Installing packages while Isaac Sim is running can update shared libraries it depends on.
+
+**Fix**: Always close Isaac Sim before running `apt install` or `apt upgrade`. Restart Isaac Sim after package installations.
+
+### NVIDIA Nucleus Asset Downloads Hang
+
+**Symptom**: Standalone Python examples stuck on "carb.tasking" or asset downloads.
+
+**Workarounds**:
+- Use local assets instead of Nucleus cloud assets
+- Check network connectivity to NVIDIA servers
+- Look for local sample USD scenes in `/opt/IsaacSim/` that don't require downloads
+
+### ROS 2 Topics Not Visible
+
+If `ros2 topic list` only shows `/parameter_events` and `/rosout`:
+
+1. **Check RMW match** (see DDS/RMW Configuration above)
+2. **Check Domain ID**: Both sides must use same `ROS_DOMAIN_ID`
+3. **Check environment isolation**: Don't mix Isaac Sim and system ROS 2 environments
+4. **Ensure Isaac Sim is playing**: Topics only publish when simulation is running (Play button pressed)
+5. **Verify ROS 2 bridge is enabled**: Window > Extensions > search "ROS2"
+
+### "Not Responding" During Startup
+
+**Normal behavior** during first launch - Isaac Sim is compiling shaders.
+- Click "Wait" on the dialog
+- Watch terminal for progress
+- Can take 5-10 minutes on first run
+- Subsequent launches are much faster (shaders cached)
+
+### WebRTC Streaming Issues
+
+- Only **one client** can connect at a time
+- A100 GPUs **cannot stream** (no NVENC encoder) - must use L40S (g6e instances)
+- Required ports: TCP 49100, UDP 47998
+
+### QoS Configuration
+
+High-rate sim cameras can cause memory issues without proper QoS configuration.
+
+For nav2/perception pipelines:
+- Use throttling to reduce camera publish rate
+- Use compressed image transport
+- Configure appropriate QoS profiles (reliability, history depth)
+
+## Reference URLs
+
+- NVIDIA Forum - ROS2 bridge communication: https://forums.developer.nvidia.com/t/ros2-bridge-communication-problem/246195
+- NVIDIA Forum - ROS 2 bridge issue: https://forums.developer.nvidia.com/t/ros-2-bridge-issue/229916
+- Fast-DDS GitHub - Isaac Sim fix: https://github.com/eProsima/Fast-DDS/issues/3000
+- NVIDIA troubleshooting docs: https://nvidia-isaac-ros.github.io/repositories_and_packages/isaac_ros_nvblox/isaac_ros_nvblox/troubleshooting/troubleshooting_nvblox_ros_communication.html
+
+## AMI Quick Reference
+
+From NVIDIA's Isaac Sim AMI documentation:
+
+1. Navigate to AWS Marketplace and subscribe to "NVIDIA Isaac Sim Development Workstation"
+2. Set instance type to **g6e.2xlarge** (required)
+3. Configure security group with ports 22 (SSH) and 8443 (DCV)
+4. After launch, SSH in and set password: `sudo passwd ubuntu`
+5. Connect with NICE DCV client to `https://<ip>:8443`

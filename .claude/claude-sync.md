@@ -247,3 +247,31 @@ echo $ROS_DOMAIN_ID
 **Instance Status:** Stopping now to halt billing. All work saved on EBS.
 
 ---
+
+### [2026-01-11 03:15] FROM-LAPTOP
+
+**Documentation Updated with All Gotchas**
+
+All gotchas from today's session (plus additional ones from the detailed planning docs) have been integrated into the proper documentation files:
+
+**Updated Files:**
+- `docs/setup/isaac-sim-usage.md` - Complete ROS 2 integration guide, DDS/RMW fix, troubleshooting
+- `CLAUDE.md` - Quick reference to RMW fix with pointer to full guide
+
+**Key Fix for Next Session:**
+```bash
+# In your Jazzy terminal (NOT the one running Isaac Sim)
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+export ROS_DOMAIN_ID=0
+ros2 topic list  # Should now see Isaac Sim topics
+```
+
+**Critical Points:**
+1. Don't source `/opt/ros/jazzy/setup.bash` in the terminal that launches Isaac Sim
+2. Keep Isaac Sim and ROS 2 terminals separate
+3. Raw USD robots need OmniGraph wiring for ROS 2 topics
+4. First launch shader compilation takes 5-10 min (click "Wait" on dialogs)
+
+Run `git pull` to get the updated docs before next session.
+
+---

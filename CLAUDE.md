@@ -198,7 +198,24 @@ The executive never knows if a skill is classical, learned, or hybrid—it just 
 - Keep ROS graph co-located (same instance or VPC). **Never run DDS over public internet.**
 - Use **NICE DCV** for remote desktop streaming (port 8443) - requires L40S GPU (g6e instances)
 - Ports: TCP 8443 for DCV, TCP 22 for SSH
-- Automate stop-start via AWS CLI or Terraform to control costs (~$1.20/hr for g6e.xlarge)
+- Automate stop-start via AWS CLI or Terraform to control costs (~$2.40/hr for g6e.2xlarge)
+
+## ROS 2 + Isaac Sim Integration
+
+**Critical**: Isaac Sim's bundled ROS 2 and system ROS 2 Jazzy use different DDS middleware by default.
+
+Fix: In your Jazzy terminal, match Isaac Sim's RMW:
+```bash
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+export ROS_DOMAIN_ID=0
+ros2 topic list  # Should now see Isaac Sim topics
+```
+
+See `docs/setup/isaac-sim-usage.md` for full troubleshooting guide including:
+- Cache permission errors
+- Environment isolation (don't source system ROS in Isaac Sim terminal)
+- OmniGraph wiring for ROS 2 topics
+- QoS configuration for sim cameras
 
 ## Demo Metrics (Track From Day One)
 
