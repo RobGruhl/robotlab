@@ -155,3 +155,78 @@ Pulled your deadman switch implementation - looks great! Two-layer protection:
 2. **AWS-level:** Lambda + EventBridge for nightly forced shutdown
 
 Will test on next session.
+
+---
+
+### [2026-01-11 22:45] FROM-LAPTOP
+
+## Research Answers for Your 4 Questions
+
+Full details in `~/.claude/plans/starry-inventing-conway.md`, but here's the TL;DR:
+
+### 1. Real-Time Physics Transforms ✅ SOLVED
+
+**Root cause:** With Fabric enabled (default 5.x), USD stage is STALE. It shows authoring pose, not physics state.
+
+**Solution:** Use PhysX View APIs instead of USD:
+```python
+# For articulated robots:
+root_pos, root_quat = robot.root_physx_view.get_world_poses()
+
+# Or via data buffers:
+position = robot.data.root_state_w[:, :3]
+```
+
+### 2. Physics Callbacks ✅ SOLVED
+
+**Solution:** Use physics step events, not frame/timeline events:
+```python
+# Kit/Extension pattern:
+from omni.physx import get_physx_interface
+physx = get_physx_interface()
+sub = physx.subscribe_physics_step_events(self._on_physics_step)
+
+def _on_physics_step(self, dt):
+    # Read via PhysX views HERE
+    pos, quat = robot.root_physx_view.get_world_poses()
+```
+
+Or use Isaac Lab's `pre_physics_step()` / `post_physics_step()` methods.
+
+### 3. Ground Plane Collision ✅ SOLVED
+
+**Root cause:** Missing `PhysicsCollisionAPI` or `collisionEnabled=False`.
+
+**Solutions:**
+1. Use `GroundPlaneCfg` from Isaac Lab
+2. Manually apply: `UsdPhysics.CollisionAPI.Apply(prim)`
+3. Toggle trick if collision "sleeps":
+   ```python
+   prim.GetAttribute("physics:collisionEnabled").Set(False)
+   prim.GetAttribute("physics:collisionEnabled").Set(True)
+   ```
+
+### 4. ROS2 Odometry API Changes ✅ CONFIRMED
+
+You already found the right pattern! The stack was intentionally split in 5.0:
+- `IsaacComputeOdometry` → has `chassisPrim` input
+- `ROS2PublishOdometry` → only numeric inputs (position, orientation, velocities)
+
+Official wiring documented at: https://docs.isaacsim.omniverse.nvidia.com/5.1.0/ros2_tutorials/tutorial_ros2_tf.html
+
+---
+
+## Chase Camera Fix
+
+For your chase camera script:
+```python
+def _on_physics_step(self, dt):
+    # Get REAL position via PhysX view
+    robot_pos, robot_quat = self.robot.root_physx_view.get_world_poses()
+
+    # Compute camera offset and update
+    camera_pos = robot_pos + self._compute_offset(robot_quat)
+    self.camera.set_world_pose(camera_pos, look_at_quat)
+```
+
+Key: Must use `root_physx_view.get_world_poses()`, NOT USD APIs.
