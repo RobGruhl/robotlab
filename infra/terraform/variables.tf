@@ -33,12 +33,12 @@ variable "root_volume_size" {
 variable "instance_type" {
   description = <<-EOT
     EC2 instance type. Options:
-    - g6e.2xlarge: L40s GPU, best for streaming/interactive ($1.50/hr on-demand)
-    - g5.xlarge:   A10G GPU, good for training + occasional streaming ($1.00/hr on-demand)
-    - g4dn.xlarge: T4 GPU, budget option for lighter workloads ($0.50/hr on-demand)
+    - g6e.2xlarge: L40S GPU, REQUIRED for Isaac Sim AMI streaming (~$2.40/hr on-demand)
+    - g6e.xlarge:  L40S GPU, smaller but often has capacity issues (~$1.50/hr on-demand)
+    Note: Isaac Sim AMI requires g6e instances (L40S with NVENC for streaming)
   EOT
   type        = string
-  default     = "g5.xlarge" # Good balance of cost and capability for dev/training
+  default     = "g6e.2xlarge" # Required for Isaac Sim AMI with DCV/WebRTC streaming
 }
 
 variable "use_spot" {
