@@ -264,7 +264,7 @@ Resume later with `./scripts/start-instance.sh`.
 
 | Problem | Solution |
 |---------|----------|
-| SSH timeout | IP changed. Update `my_ip_cidr` in terraform.tfvars, run `terraform apply` |
+| SSH/DCV timeout | **IP changed.** Update `my_ip_cidr` in terraform.tfvars, run `terraform apply`. Common on laptops! |
 | SSH permission denied | Check key name, run `chmod 400 ~/.ssh/robotlab.pem` |
 | DCV login fails | Set password first: `sudo passwd ubuntu` |
 | DCV connection refused | Wait 2-3 min after start, check port 8443 open |
@@ -290,8 +290,17 @@ Resume later with `./scripts/start-instance.sh`.
 
 ## Quick Reference
 
+**Before starting:** If you're on a laptop or your IP changes frequently, update `my_ip_cidr` in `terraform.tfvars` before each session:
+```bash
+# Check/update your IP
+MY_IP=$(curl -s -4 ifconfig.me)
+echo "my_ip_cidr = \"$MY_IP/32\""
+# Edit terraform.tfvars, then: terraform apply -auto-approve
+```
+
 | What | Command |
 |------|---------|
+| Update IP | `cd infra/terraform && terraform apply` (after editing terraform.tfvars) |
 | Start instance | `./scripts/start-instance.sh` |
 | Stop instance | `./scripts/stop-instance.sh` |
 | Get IP | `cd infra/terraform && terraform output public_ip` |
