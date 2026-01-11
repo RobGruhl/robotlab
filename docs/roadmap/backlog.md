@@ -10,10 +10,22 @@ Current work items and hardware research, prioritized by sim-to-real readiness.
 
 - [x] Isaac Sim + ROS 2 bridge working (`/clock` visible)
 - [x] Jetbot responding to `/cmd_vel`
-- [ ] Add `/odom` publisher
-- [ ] Add `/tf` publisher
+- [x] Add `/odom` publisher (via IsaacComputeOdometry → ROS2PublishOdometry)
+- [x] Add `/tf` publisher (world → chassis → wheels)
+- [ ] Chase camera (third-person follow cam) - **blocked on physics transform API**
 - [ ] Add camera topics
 - [ ] Nav2 integration
+
+**Jetbot ActionGraph script:** `scripts/create_jetbot_graph.py`
+**OmniGraph docs:** `docs/omnigraph/jetbot-graph.md`
+
+### Open Technical Questions
+
+See `.claude/claude-sync.md` for detailed research requests. Key blockers:
+
+1. **Real-time physics transforms:** Can't read prim position during physics simulation
+2. **Callback patterns:** Which subscription type sees physics state?
+3. **Programmatic ground plane:** Physics collision not working when created via Python
 
 ---
 
@@ -99,3 +111,5 @@ Current work items and hardware research, prioritized by sim-to-real readiness.
 | 2026-01-11 | Start with Jetbot, not LIMO | Known quantity in Isaac Sim, faster to hello world |
 | 2026-01-11 | LIMO Cobot as target hardware | Best value mobile manipulator under $5k |
 | 2026-01-11 | Starling 2 for scout drone | PX4 + ROS 2 + visual SLAM, Isaac Sim compatible via Pegasus |
+| 2026-01-11 | Two-layer deadman switch | Instance-level (SSH/DCV/GPU monitor) + AWS-level (nightly Lambda) prevents runaway costs |
+| 2026-01-11 | IsaacComputeOdometry → ROS2PublishOdometry | Isaac Sim 5.0 API change - ROS2 node doesn't have chassisPrim input |

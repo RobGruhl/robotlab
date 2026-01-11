@@ -12,9 +12,10 @@ OmniGraph is Isaac Sim's visual programming framework. It connects nodes that pr
 
 | Document | Purpose |
 |----------|---------|
-| [programmatic-creation.md](programmatic-creation.md) | `og.Controller.edit()` API reference |
+| [jetbot-graph.md](jetbot-graph.md) | **Complete working Jetbot graph** with verified node attributes |
+| [programmatic-creation.md](programmatic-creation.md) | `og.Controller.edit()` API + lessons learned |
 | [node-reference.md](node-reference.md) | Node catalog with input/output ports |
-| [ros2-patterns.md](ros2-patterns.md) | Complete patterns for robots |
+| [ros2-patterns.md](ros2-patterns.md) | Complete patterns for different robot types |
 
 ## Quick Reference
 
@@ -27,11 +28,43 @@ OmniGraph is Isaac Sim's visual programming framework. It connects nodes that pr
 | ROS 2 context | `isaacsim.ros2.bridge.ROS2Context` |
 | Publish clock | `isaacsim.ros2.bridge.ROS2PublishClock` |
 | Subscribe twist | `isaacsim.ros2.bridge.ROS2SubscribeTwist` |
+| **Compute odometry** | `isaacsim.core.nodes.IsaacComputeOdometry` |
+| **Publish odometry** | `isaacsim.ros2.bridge.ROS2PublishOdometry` |
+| **Publish TF** | `isaacsim.ros2.bridge.ROS2PublishTransformTree` |
 | Publish joint state | `isaacsim.ros2.bridge.ROS2PublishJointState` |
 | Subscribe joint state | `isaacsim.ros2.bridge.ROS2SubscribeJointState` |
 | Articulation controller | `isaacsim.core.nodes.IsaacArticulationController` |
 | Differential controller | `isaacsim.robot.wheeled_robots.DifferentialController` |
 | Ackermann controller | `isaacsim.robot.wheeled_robots.AckermannController` |
+
+### Critical Lesson: Odometry Requires Two Nodes
+
+**Wrong:** `ROS2PublishOdometry` does NOT have a `chassisPrim` input in Isaac Sim 5.0.
+
+**Right:** Chain two nodes:
+1. `IsaacComputeOdometry` - reads from `chassisPrim`, outputs position/orientation/velocity
+2. `ROS2PublishOdometry` - takes computed values, publishes to ROS 2
+
+```python
+# Odometry wiring pattern
+keys.CREATE_NODES: [
+    ("compute_odom", "isaacsim.core.nodes.IsaacComputeOdometry"),
+    ("publish_odom", "isaacsim.ros2.bridge.ROS2PublishOdometry"),
+],
+keys.SET_VALUES: [
+    ("compute_odom.inputs:chassisPrim", "/World/jetbot"),
+    ("publish_odom.inputs:topicName", "/odom"),
+],
+keys.CONNECT: [
+    ("on_playback_tick.outputs:tick", "compute_odom.inputs:execIn"),
+    ("compute_odom.outputs:execOut", "publish_odom.inputs:execIn"),
+    ("compute_odom.outputs:position", "publish_odom.inputs:position"),
+    ("compute_odom.outputs:orientation", "publish_odom.inputs:orientation"),
+    ("compute_odom.outputs:linearVelocity", "publish_odom.inputs:linearVelocity"),
+    ("compute_odom.outputs:angularVelocity", "publish_odom.inputs:angularVelocity"),
+    ("read_sim_time.outputs:simulationTime", "publish_odom.inputs:timeStamp"),
+],
+```
 
 ### Minimal Python Pattern
 
