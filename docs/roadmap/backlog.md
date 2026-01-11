@@ -1,6 +1,6 @@
-# Robotlab Backlog
+# Backlog
 
-Ideas and research for future implementation, prioritized by sim-to-real readiness.
+Current work items and hardware research, prioritized by sim-to-real readiness.
 
 ---
 
@@ -9,9 +9,11 @@ Ideas and research for future implementation, prioritized by sim-to-real readine
 **Goal:** Hello World - drive a simulated robot with ROS 2 `/cmd_vel`
 
 - [x] Isaac Sim + ROS 2 bridge working (`/clock` visible)
-- [ ] Simple robot (Jetbot) responding to `/cmd_vel`
-- [ ] Add `/odom`, `/tf` publishers
-- [ ] Basic teleop working
+- [x] Jetbot responding to `/cmd_vel`
+- [ ] Add `/odom` publisher
+- [ ] Add `/tf` publisher
+- [ ] Add camera topics
+- [ ] Nav2 integration
 
 ---
 
@@ -26,8 +28,7 @@ Ideas and research for future implementation, prioritized by sim-to-real readine
 - Full ROS 2 stack with Nav2
 
 **Simulation Assets:**
-- LIMO URDF: `/home/ubuntu/robotlab/Limo-Isaac-Sim/limo_description/urdf/limo_base.urdf`
-- LIMO USD: `/home/ubuntu/robotlab/Limo-Isaac-Sim/limo_description/urdf/limo_base/limo_base.usd`
+- LIMO URDF: `Limo-Isaac-Sim/limo_description/urdf/limo_base.urdf`
 - myCobot URDF: https://github.com/elephantrobotics/mycobot_ros2
 
 **Import Settings (from AgileX docs):**

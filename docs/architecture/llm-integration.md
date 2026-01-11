@@ -1,4 +1,26 @@
-# RobotLab LLM/VLM Prompt Templates (v0.1)
+# LLM/VLM Integration
+
+Rules and patterns for integrating language models into the robotlab platform.
+
+## Integration Rules
+
+1. **Frame sampler** runs at 1-2 Hz, downscales + compresses images before sending to VLM
+
+2. **Schema validation** - All outputs validated against JSON schemas:
+   - VLM output: `schemas/scene_analysis.schema.json`
+   - Planner output: `schemas/action_plan.schema.json`
+   - Skill calls: `schemas/skill_call.schema.json`
+
+3. **Add timeouts** to all VLM/LLM calls (10-30 seconds depending on model)
+
+4. **Keep cognitive layer swappable**:
+   - Frontier API (Claude, GPT-4V)
+   - Local VLM (Llama-based)
+   - Scripted fallback (for testing)
+
+5. **LLM outputs are untrusted** - LLMs propose; executor validates schemas + enforces safety. LLMs never command raw motors.
+
+---
 
 ## Core Rule
 
@@ -78,9 +100,43 @@ Return a plan.
 
 ---
 
+## Architecture Context
+
+```
++----------------+     +----------------+     +----------------+
+|  Frame Sampler |---->|   VLM Client   |---->| Scene Graph    |
+|  (1-2 Hz)      |     | (scene_analysis)|    | (persistence)  |
++----------------+     +----------------+     +----------------+
+                                                      |
+                                                      v
++----------------+     +----------------+     +----------------+
+| User Goal      |---->|  LLM Planner   |---->| Executor       |
+| (natural lang) |     | (action_plan)  |     | (safety gate)  |
++----------------+     +----------------+     +----------------+
+                                                      |
+                                                      v
+                                              +----------------+
+                                              | Skills         |
+                                              | (ROS actions)  |
+                                              +----------------+
+```
+
+---
+
 ## Usage Notes
 
 1. **Schema References**: All schemas live in `schemas/` directory
 2. **Validation**: Use `robotlab_llm.schema_validation.SchemaValidator` to validate outputs
 3. **Registry**: The skill registry at `ros_ws/src/robotlab_executor/skill_registry.yaml` defines available skills
 4. **Examples**: See `examples/` for sample valid outputs
+
+---
+
+## Error Handling
+
+| Error | Response |
+|-------|----------|
+| Timeout | Log warning, return empty plan with `request_more_info.needed=true` |
+| Invalid JSON | Retry once with prompt to fix, then fail |
+| Schema violation | Reject plan, ask for clarification |
+| Safety violation | Executor blocks action, returns safe alternative |
