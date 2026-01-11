@@ -127,3 +127,69 @@ Isaac Sim ROS 2 bridge test. User needs to:
 Awaiting Isaac Sim launch!
 
 ---
+
+### [2026-01-11 02:30] FROM-AWS
+
+**Debugging Session Summary - ROS 2 + Isaac Sim Integration**
+
+Pausing here for the night. Here's what we learned:
+
+**What Works:**
+- Isaac Sim 5.0.0 GUI launches and renders (via DCV)
+- User can drag robots (Spot, Jetbot) into scene from Content browser
+- Robots drop onto ground plane when Play is pressed (physics working)
+- ROS 2 Jazzy installed and functional (`ros2 topic list` shows `/parameter_events`, `/rosout`)
+- `isaacsim.ros2.bridge` extension v4.9.3 is enabled in Isaac Sim
+- GPU (L40S) healthy, CUDA 12.8 working
+
+**Issues Encountered:**
+
+1. **Isaac Sim crashed during ROS 2 apt install**
+   - Cause: Installing packages while Isaac Sim was running updated shared libraries
+   - Fix: Restart Isaac Sim after package installations
+
+2. **Cache permission errors**
+   - Errors: `Failed to create local file data store at '/opt/IsaacSim/kit/cache'`
+   - Fix: `sudo mkdir -p /opt/IsaacSim/kit/cache && sudo chown -R ubuntu:ubuntu /opt/IsaacSim/kit/cache`
+
+3. **Standalone Python examples failing:**
+   - `carter_stereo.py` - stuck trying to download assets from NVIDIA Nucleus ("carb.tasking stuck")
+   - `clock.py` - runs headless, gets to "app ready" then hangs before simulation loop
+   - Neither published ROS 2 topics visible to system ROS 2
+
+4. **ROS 2 topics not visible between Isaac Sim and system ROS 2**
+   - Isaac Sim uses bundled Python 3.11 + internal ROS 2 libraries
+   - System ROS 2 Jazzy uses Python 3.12
+   - DDS communication between them not working (no shared topics/nodes visible)
+   - `ros2 topic list` from system ROS 2 never sees Isaac Sim topics
+
+5. **Dragged robots don't publish ROS 2 topics**
+   - Raw robot USD models are just physics objects
+   - Need OmniGraph action graphs wired up to publish to ROS 2
+   - Pre-wired sample scenes require NVIDIA Nucleus assets (cloud download)
+
+**Hypotheses for Next Session:**
+
+1. **DDS Domain mismatch** - Isaac Sim's internal ROS 2 might be on different `ROS_DOMAIN_ID`
+2. **DDS middleware mismatch** - May need to ensure both use same DDS impl (CycloneDDS vs FastDDS)
+3. **Network isolation** - localhost-only DDS might need explicit config
+4. **Need local assets** - Cloud asset downloads failing; may need to cache locally or use simpler USD files
+
+**Recommended Next Steps:**
+
+1. Try launching Isaac Sim GUI normally (`./isaac-sim.sh`) and manually add ROS 2 action graph nodes
+2. Check Isaac Sim's ROS 2 settings for domain ID configuration
+3. Look for local sample USD scenes that don't require Nucleus download
+4. Consider setting `ROS_LOCALHOST_ONLY=1` for both environments
+5. Check Isaac Sim documentation for ROS 2 Jazzy compatibility notes
+
+**Environment Reference:**
+- Ubuntu 24.04.3 LTS
+- Isaac Sim 5.0.0-rc.45 at `/opt/IsaacSim/`
+- ROS 2 Jazzy at `/opt/ros/jazzy/`
+- NVIDIA Driver 570.172.08, CUDA 12.8
+- GPU: NVIDIA L40S (46GB)
+
+Good debugging session - we've narrowed down the issue to DDS communication between Isaac Sim's bundled ROS 2 and system ROS 2. Will pick this up next time!
+
+---
