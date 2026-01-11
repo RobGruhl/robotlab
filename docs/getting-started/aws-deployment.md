@@ -11,7 +11,7 @@ cd infra/terraform && terraform init
 
 # Create terraform.tfvars with your values:
 # my_ip_cidr = "YOUR_IP/32", key_name = "robotlab",
-# isaac_sim_ami = "ami-0a58578db493e70fb", instance_type = "g6e.xlarge"
+# isaac_sim_ami = "ami-0a58578db493e70fb", instance_type = "g6e.2xlarge"
 
 terraform apply
 ssh -i ~/.ssh/robotlab.pem ubuntu@$(terraform output -raw public_ip)
@@ -19,7 +19,7 @@ ssh -i ~/.ssh/robotlab.pem ubuntu@$(terraform output -raw public_ip)
 # Connect DCV: https://<ip>:8443
 ```
 
-**Critical:** Must use `g6e.xlarge` or `g6e.2xlarge` (L40S GPU). Other GPU types won't work.
+**Critical:** Must use `g6e.2xlarge` (L40S GPU). Other GPU types won't work.
 
 ---
 
@@ -124,7 +124,7 @@ key_name        = "robotlab"
 isaac_sim_ami   = "ami-0a58578db493e70fb"
 region          = "us-west-2"
 use_spot        = false
-instance_type   = "g6e.xlarge"
+instance_type   = "g6e.2xlarge"
 EOF
 
 # Fill in your IP
@@ -136,7 +136,7 @@ cat terraform.tfvars
 ```
 
 **Critical settings:**
-- `instance_type = "g6e.xlarge"` or `g6e.2xlarge` - **Required**. Other GPU types won't work.
+- `instance_type = "g6e.2xlarge"` - **Required**. Other GPU types won't work.
 - `use_spot = false` - **Required**. Spot not supported for this AMI.
 
 ---
@@ -233,7 +233,7 @@ ros2 topic list
 
 ## Step 10: Stop When Done
 
-**g6e.xlarge costs ~$1.20/hour. Stop when not in use.**
+**g6e.2xlarge costs ~$2.40/hour. Stop when not in use.**
 
 ```bash
 # From your Mac
@@ -280,12 +280,11 @@ Resume later with `./scripts/start-instance.sh`.
 
 | State | Cost |
 |-------|------|
-| Running (g6e.xlarge) | ~$1.20/hour |
-| Running (g6e.2xlarge) | ~$1.50/hour |
+| Running (g6e.2xlarge) | ~$2.40/hour |
 | Stopped | ~$0.08/GB/month for EBS storage |
 | Terminated | Nothing (lose cached shaders) |
 
-**Rule:** A forgotten instance = ~$29/day burned.
+**Rule:** A forgotten instance = ~$58/day burned.
 
 ---
 
