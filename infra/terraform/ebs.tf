@@ -71,6 +71,31 @@ resource "aws_iam_role_policy" "secrets_access" {
   })
 }
 
+# Policy to allow instance to stop itself (deadman switch)
+resource "aws_iam_role_policy" "self_stop" {
+  name = "robotlab-self-stop"
+  role = aws_iam_role.isaac_sim.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:StopInstances",
+          "ec2:DescribeInstances"
+        ]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "ec2:ResourceTag/Project" = "robotlab"
+          }
+        }
+      }
+    ]
+  })
+}
+
 # Instance profile to attach role to EC2
 resource "aws_iam_instance_profile" "isaac_sim" {
   name = "robotlab-isaac-sim-profile"

@@ -212,7 +212,9 @@ ls -la /mnt/persist/claude
 ## Security Notes
 
 - API key is stored in AWS Secrets Manager, never in code or AMI
-- Instance role has minimal permissions (only `secretsmanager:GetSecretValue` for `robotlab/*`)
+- Instance role has minimal permissions:
+  - `secretsmanager:GetSecretValue` for `robotlab/*` secrets
+  - `ec2:StopInstances` and `ec2:DescribeInstances` for self-stop (deadman switch)
 - SSH access restricted to your IP via security group
 - Credentials file on disk is mode 600 (owner-only read/write)
 
@@ -235,3 +237,21 @@ To keep data but reduce costs, just stop the instance:
 ```bash
 ./scripts/stop-instance.sh
 ```
+
+### Deadman Switch
+
+The infrastructure includes automatic cost protection:
+
+| Layer | What | When |
+|-------|------|------|
+| Instance daemon | Monitors SSH/DCV/GPU activity | Shuts down after 30 min idle (with 10 min warning) |
+| Nightly Lambda | Force-stops instance | Midnight Pacific daily |
+| AWS Budget | Email alerts | At 80% and 100% of $100/month |
+
+**Setup:** Set `deadman_email` in `terraform.tfvars`, run `terraform apply`, confirm the SNS email.
+
+**On instance:** The daemon runs as `deadman-switch.service`. Check with `systemctl status deadman-switch.service`.
+
+**Manual extend:** Touch `/tmp/deadman-extend` to reset the idle timer.
+
+See [AWS Deployment Guide](../getting-started/aws-deployment.md#deadman-switch-cost-protection) for full details.

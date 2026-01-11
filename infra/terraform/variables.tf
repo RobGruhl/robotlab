@@ -64,3 +64,28 @@ variable "github_repo_url" {
   type        = string
   default     = "https://github.com/YOUR_USERNAME/robotlab.git"
 }
+
+# Deadman Switch Configuration
+variable "deadman_email" {
+  description = "Email address for deadman switch notifications"
+  type        = string
+  default     = ""
+}
+
+variable "deadman_shutdown_hour_utc" {
+  description = "Hour (0-23 UTC) for nightly forced shutdown. Default 8 = midnight Pacific (PST)."
+  type        = number
+  default     = 8
+}
+
+variable "deadman_enabled" {
+  description = "Enable the nightly Lambda deadman switch"
+  type        = bool
+  default     = true
+}
+
+variable "deadman_budget_limit" {
+  description = "Monthly EC2 budget limit in USD for alerts"
+  type        = number
+  default     = 100
+}

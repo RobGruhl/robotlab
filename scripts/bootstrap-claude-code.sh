@@ -152,12 +152,65 @@ if [[ ! -L "$HOME/Projects/robotlab" ]] && [[ -d "$REPO_DIR" ]]; then
   log "Created symlink: ~/Projects/robotlab -> $REPO_DIR"
 fi
 
-# Step 7: Verify installation
-log "Step 7: Verifying installation..."
+# Step 7: Install deadman switch service
+log "Step 7: Installing deadman switch service..."
+DEADMAN_SCRIPT="$REPO_DIR/scripts/deadman-switch.sh"
+DEADMAN_DEST="/opt/robotlab/deadman-switch.sh"
+SYSTEMD_SERVICE="/etc/systemd/system/deadman-switch.service"
+
+if [[ -f "$DEADMAN_SCRIPT" ]]; then
+  # Copy script to /opt/robotlab
+  run sudo mkdir -p /opt/robotlab
+  run sudo cp "$DEADMAN_SCRIPT" "$DEADMAN_DEST"
+  run sudo chmod +x "$DEADMAN_DEST"
+
+  # Create systemd service file
+  if [[ ! -f "$SYSTEMD_SERVICE" ]] || ! $DRY_RUN; then
+    log "Creating systemd service for deadman switch"
+    run sudo tee "$SYSTEMD_SERVICE" > /dev/null <<'EOF'
+[Unit]
+Description=Deadman Switch - Auto-shutdown on inactivity
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/robotlab/deadman-switch.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Environment overrides (optional)
+# Environment=DEADMAN_IDLE_THRESHOLD=1800
+# Environment=DEADMAN_COUNTDOWN=600
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  fi
+
+  # Enable and start service
+  run sudo systemctl daemon-reload
+  run sudo systemctl enable deadman-switch.service
+  run sudo systemctl start deadman-switch.service
+  log "Deadman switch service installed and started"
+else
+  log "WARNING: Deadman switch script not found at $DEADMAN_SCRIPT"
+fi
+
+# Step 8: Verify installation
+log "Step 8: Verifying installation..."
 if command -v claude &>/dev/null; then
   log "Claude Code version: $(claude --version 2>/dev/null || echo 'installed')"
 else
   log "WARNING: Claude Code not in PATH"
+fi
+
+# Check deadman switch status
+if systemctl is-active --quiet deadman-switch.service 2>/dev/null; then
+  log "Deadman switch: ACTIVE"
+else
+  log "Deadman switch: not running (check 'systemctl status deadman-switch.service')"
 fi
 
 log ""

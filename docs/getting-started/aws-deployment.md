@@ -248,6 +248,49 @@ Resume later with `./scripts/start-instance.sh`.
 
 ---
 
+## Deadman Switch (Cost Protection)
+
+The infrastructure includes automatic cost protection to prevent forgotten instances from burning money overnight.
+
+### Three-Layer Defense
+
+1. **Instance-side daemon**: Monitors SSH/DCV connections and GPU usage. If all idle for 30 minutes, shuts down with 10-minute warning.
+
+2. **Nightly Lambda**: Stops the instance at midnight Pacific regardless of activity. You'll receive an email notification.
+
+3. **AWS Budget alerts**: Notifies you at 80% and 100% of monthly EC2 budget ($100 default).
+
+### Enable Notifications
+
+Set your email in `terraform.tfvars` to receive shutdown notifications:
+
+```hcl
+deadman_email = "your@email.com"
+```
+
+After `terraform apply`, you'll receive a confirmation email from AWS SNS - click to confirm.
+
+### Check Daemon Status (On Instance)
+
+```bash
+# Is daemon running?
+systemctl status deadman-switch.service
+
+# View recent logs
+journalctl -u deadman-switch.service -f
+
+# Manual extend (postpone shutdown)
+touch /tmp/deadman-extend
+```
+
+### Disable (Not Recommended)
+
+```hcl
+deadman_enabled = false
+```
+
+---
+
 ## Verification Checklist
 
 | Check | Command | Expected |

@@ -25,3 +25,10 @@ use_spot = false
 
 # Optional: cap spot price (not applicable when use_spot = false)
 # spot_max_price = ""
+
+# Deadman Switch - Auto-shutdown to prevent runaway costs
+# Nightly Lambda stops instance at scheduled time + sends email notification
+deadman_email             = "your@email.com"  # REQUIRED for notifications
+deadman_shutdown_hour_utc = 8                 # 8 UTC = midnight Pacific (PST)
+deadman_enabled           = true
+deadman_budget_limit      = 100               # Monthly EC2 budget alert threshold (USD)
