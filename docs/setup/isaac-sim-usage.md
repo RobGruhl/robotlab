@@ -115,7 +115,12 @@ Dragging a robot USD file into the scene creates a **physics object only**. It w
 
 To get ROS 2 topics (`/clock`, `/tf`, `/cmd_vel`, cameras):
 1. Use pre-wired sample scenes that include OmniGraph action graphs
-2. Or manually add ROS 2 bridge nodes (see below)
+2. **Recommended:** Create graphs programmatically with Python (see `docs/omnigraph/`)
+3. Or manually add ROS 2 bridge nodes via GUI (see below)
+
+**Programmatic approach:** Instead of manual GUI wiring, use `og.Controller.edit()` to create graphs with Python. See:
+- [docs/omnigraph/programmatic-creation.md](../omnigraph/programmatic-creation.md) - API reference
+- [docs/omnigraph/ros2-patterns.md](../omnigraph/ros2-patterns.md) - Copy-paste patterns
 
 Pre-wired scenes may require NVIDIA Nucleus asset downloads (see troubleshooting below).
 
